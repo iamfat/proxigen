@@ -80,16 +80,22 @@ const sslPort = config.server.ssl
   : undefined;
 console.log(
   `Proxigen started at ${chalk.green(`HTTP:${port}`)}${
-    sslPort && ` and ${chalk.green(`HTTPS:${sslPort}`)}`
+    sslPort ? ` and ${chalk.green(`HTTPS:${sslPort}`)}` : ""
   }...`
 );
 
 (config.mappings || []).map(({ from, to, options }) => {
-  const urls = [`http://${from}${port !== 80 && `:${port}`}`];
+  const u = new URL("http://" + from);
+  if (port !== 80) u.port = port;
+
+  const urls = [u.href];
   if (config.server.ssl) {
-    urls.push(
-      `https://${from}${sslPort && sslPort !== 443 ? `:${sslPort}` : ""}`
-    );
+    u.protocol = "https:";
+    if (sslPort !== 443) u.port = sslPort;
+    urls.push(u.href);
+  } else {
+    delete options.ssl;
   }
-  proxy.register(from, to, options || {});
+  const { headers, ...otherOptions } = options || {};
+  proxy.register(from, to, otherOptions);
 });
